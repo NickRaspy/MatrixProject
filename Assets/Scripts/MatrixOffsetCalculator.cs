@@ -14,22 +14,21 @@ namespace MatrixProject
                 return new List<Matrix4x4>();
 
             translationTolerance = Mathf.Max(translationTolerance, EPSILON);
-            float toleranceSq = translationTolerance * translationTolerance;
 
-            var spaceLookup = BuildLookup(space, translationTolerance);
+            var spaceHash = BuildSpatialHash(space, translationTolerance);
             var result = new List<Matrix4x4>();
 
             for (int si = 0; si < space.Count; si++)
             {
                 if (!IsValidMatrix(space[si])) continue;
 
-                Matrix4x4? candidate = ComputeCandidateOffset(space[si], model[0], translationTolerance);
+                Matrix4x4? candidate = ComputeCandidateOffset(space[si], model[0]);
                 if (!candidate.HasValue) continue;
 
-                if (!SatisfiesFormula(candidate.Value, model, spaceLookup, translationTolerance, toleranceSq))
+                if (!DoesSatisfyFormula(candidate.Value, model, spaceHash, translationTolerance))
                     continue;
 
-                if (IsDuplicate(candidate.Value, result, translationTolerance, toleranceSq))
+                if (IsMatrixDuplicate(candidate.Value, result, translationTolerance))
                     continue;
 
                 result.Add(candidate.Value);
@@ -82,12 +81,12 @@ namespace MatrixProject
             return Mathf.Abs(det) > EPSILON;
         }
 
-        private static Matrix4x4? ComputeCandidateOffset(Matrix4x4 spaceMatrix, Matrix4x4 modelBase, float tolerance)
+        private static Matrix4x4? ComputeCandidateOffset(Matrix4x4 spaceMatrix, Matrix4x4 modelMatrix)
         {
-            if (!IsInvertible(modelBase))
+            if (!IsInvertible(modelMatrix))
                 return null;
 
-            Matrix4x4 modelBaseInv = modelBase.inverse;
+            Matrix4x4 modelBaseInv = modelMatrix.inverse;
             Matrix4x4 candidate = spaceMatrix * modelBaseInv;
 
             if (!IsValidMatrix(candidate))
@@ -96,111 +95,112 @@ namespace MatrixProject
             return candidate;
         }
 
-        private static bool SatisfiesFormula(Matrix4x4 offset, List<Matrix4x4> model, Dictionary<string, List<Matrix4x4>> spaceLookup, float tolerance, float toleranceSq)
+        private static bool DoesSatisfyFormula(Matrix4x4 offsetMatrix, List<Matrix4x4> modelMatrix, Dictionary<string, List<Matrix4x4>> spaceHash, float tolerance)
         {
-            for (int i = 0; i < model.Count; i++)
+            for (int i = 0; i < modelMatrix.Count; i++)
             {
-                if (!IsValidMatrix(model[i]))
+                if (!IsValidMatrix(modelMatrix[i]))
                     continue;
 
-                Matrix4x4 transformed = offset * model[i];
+                Matrix4x4 transformed = offsetMatrix * modelMatrix[i];
 
                 if (!IsValidMatrix(transformed))
                     return false;
 
-                if (!IsInSpace(transformed, spaceLookup, tolerance, toleranceSq))
+                if (!IsMatrixInSpace(transformed, spaceHash, tolerance))
                     return false;
             }
 
             return true;
         }
 
-        private static Dictionary<string, List<Matrix4x4>> BuildLookup(List<Matrix4x4> mats, float tolerance)
+        private static Dictionary<string, List<Matrix4x4>> BuildSpatialHash(List<Matrix4x4> matrices, float tolerance)
         {
-            var dict = new Dictionary<string, List<Matrix4x4>>(mats.Count);
+            var dict = new Dictionary<string, List<Matrix4x4>>(matrices.Count);
             float safeTolerance = Mathf.Max(tolerance, EPSILON);
 
-            for (int i = 0; i < mats.Count; i++)
+            for (int i = 0; i < matrices.Count; i++)
             {
-                if (!IsValidMatrix(mats[i]))
+                if (!IsValidMatrix(matrices[i]))
                     continue;
 
-                var key = GetKey(GetPos(mats[i]), safeTolerance);
+                var key = ConvertToKey(GetPosition(matrices[i]), safeTolerance);
                 if (!dict.TryGetValue(key, out var list))
                 {
                     list = new List<Matrix4x4>();
                     dict[key] = list;
                 }
-                list.Add(mats[i]);
+                list.Add(matrices[i]);
             }
 
             return dict;
         }
 
-        private static bool IsInSpace(Matrix4x4 mat, Dictionary<string, List<Matrix4x4>> lookup, float tolerance, float toleranceSq)
+        private static bool IsMatrixInSpace(Matrix4x4 matrix, Dictionary<string, List<Matrix4x4>> hash, float tolerance)
         {
-            var p = GetPos(mat);
+            var p = GetPosition(matrix);
             float safeTolerance = Mathf.Max(tolerance, EPSILON);
 
-            if (!lookup.TryGetValue(GetKey(p, safeTolerance), out var bucket))
+            if (!hash.TryGetValue(ConvertToKey(p, safeTolerance), out var bucket))
                 return false;
 
             for (int i = 0; i < bucket.Count; i++)
             {
-                var bp = GetPos(bucket[i]);
+                var bp = GetPosition(bucket[i]);
                 var dx = bp.x - p.x;
                 var dy = bp.y - p.y;
                 var dz = bp.z - p.z;
 
                 float distSq = dx * dx + dy * dy + dz * dz;
-                if (distSq > toleranceSq)
+                if (distSq > tolerance*tolerance)
                     continue;
 
-                if (MatricesEqual(mat, bucket[i], tolerance))
+                if (AreMatricesEqual(matrix, bucket[i], tolerance))
                     return true;
             }
 
             return false;
         }
 
-        private static bool IsDuplicate(Matrix4x4 candidate, List<Matrix4x4> existing, float tolerance, float toleranceSq)
+        private static bool IsMatrixDuplicate(Matrix4x4 matrix, List<Matrix4x4> matrices, float tolerance)
         {
-            for (int i = 0; i < existing.Count; i++)
+            for (int i = 0; i < matrices.Count; i++)
             {
-                if (IsClose(candidate, existing[i], tolerance, toleranceSq))
+                if (IsClose(matrix, matrices[i], tolerance))
                     return true;
             }
 
             return false;
         }
 
-        private static bool IsClose(Matrix4x4 a, Matrix4x4 b, float tolerance, float toleranceSq)
+        private static bool IsClose(Matrix4x4 a, Matrix4x4 b, float tolerance)
         {
-            var ap = GetPos(a);
-            var bp = GetPos(b);
+            var ap = GetPosition(a);
+            var bp = GetPosition(b);
             var dx = ap.x - bp.x;
             var dy = ap.y - bp.y;
             var dz = ap.z - bp.z;
 
             float distSq = dx * dx + dy * dy + dz * dz;
-            if (distSq > toleranceSq)
+            if (distSq > tolerance*tolerance)
                 return false;
 
-            return MatricesEqual(a, b, tolerance);
+            return AreMatricesEqual(a, b, tolerance);
         }
 
-        private static Vector3 GetPos(Matrix4x4 m) => new(m.m03, m.m13, m.m23);
+        private static Vector3 GetPosition(Matrix4x4 matrix) => new(matrix.m03, matrix.m13, matrix.m23);
 
-        private static string GetKey(Vector3 p, float tolerance)
+        private static string ConvertToKey(Vector3 vector, float tolerance)
         {
             float safeTolerance = Mathf.Max(tolerance, EPSILON);
-            int rx = Mathf.RoundToInt(p.x / safeTolerance);
-            int ry = Mathf.RoundToInt(p.y / safeTolerance);
-            int rz = Mathf.RoundToInt(p.z / safeTolerance);
+
+            int rx = Mathf.RoundToInt(vector.x / safeTolerance);
+            int ry = Mathf.RoundToInt(vector.y / safeTolerance);
+            int rz = Mathf.RoundToInt(vector.z / safeTolerance);
             return $"{rx}_{ry}_{rz}";
         }
 
-        private static bool MatricesEqual(Matrix4x4 a, Matrix4x4 b, float tolerance)
+        private static bool AreMatricesEqual(Matrix4x4 a, Matrix4x4 b, float tolerance)
         {
             return Mathf.Abs(a.m00 - b.m00) < tolerance &&
                    Mathf.Abs(a.m01 - b.m01) < tolerance &&
