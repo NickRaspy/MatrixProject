@@ -13,6 +13,8 @@ public class JSONTool
     public static void SaveToJson(object obj, string filename, Formatting formatting = Formatting.None, JsonSerializerSettings settings = null)
     {
         string json = JsonConvert.SerializeObject(obj, formatting, settings);
+
+        //for easy access to file
         string directory = Application.streamingAssetsPath;
         
         if (!Directory.Exists(directory))

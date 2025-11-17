@@ -18,6 +18,7 @@ namespace MatrixProject
         private MatrixDataList spaceList = new();
         private List<Matrix4x4> foundOffsets = new();
 
+        //can be used for visualize
         [SerializeField] private UnityEvent<List<Matrix4x4>> onAllMatricesLoad;
         [SerializeField] private UnityEvent<List<Matrix4x4>> onModelMatricesLoad;
 
@@ -32,6 +33,7 @@ namespace MatrixProject
             }
         }
 
+        //check for assigned objects on inspector
         private bool ValidateSetup()
         {
             if (matrixModelSet == null)
@@ -49,6 +51,7 @@ namespace MatrixProject
             return true;
         }
 
+        //getting matrices from JSONs
         private bool TryLoadMatrices()
         {
             try
@@ -71,6 +74,7 @@ namespace MatrixProject
             }
         }
 
+        //getting offsets
         private void SearchOffsets()
         {
             if (modelList.matrices == null || spaceList.matrices == null)
@@ -89,7 +93,7 @@ namespace MatrixProject
             SaveOffsetMatrixList();
         }
 
-
+        //saving offsets to json file somewhere in streamingAssets
         private void SaveOffsetMatrixList()
         {
             if (foundOffsets == null)

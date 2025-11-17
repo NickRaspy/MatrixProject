@@ -7,7 +7,8 @@ namespace MatrixProject
     {
         [SerializeField] private Color allMatricesColor = Color.white;
         [SerializeField] private Color modelMatricesColor = Color.blue;
-
+        
+        //for control
         private List<GameObject> allMatricesCubes = new();
         private List<GameObject> modelMatricesCubes = new();
 
@@ -19,6 +20,7 @@ namespace MatrixProject
         {
             if(matrices == null) return;
 
+            //if this method would be called somewhere again
             ClearAllObjectsInSelectedGroup(cubes);
 
             foreach(var matrix in matrices)
@@ -44,11 +46,18 @@ namespace MatrixProject
             {
                 Destroy(obj.gameObject);
             }
+
+            allMatricesCubes.Clear();
+            modelMatricesCubes.Clear();
         }
 
         private void ClearAllObjectsInSelectedGroup(List<GameObject> cubes)
         {
-            foreach(var cube in cubes) Destroy(cube);
+            foreach(var cube in cubes)
+            {
+                cubes.Remove(cube);
+                Destroy(cube);
+            }
         }
 
         void OnDisable()

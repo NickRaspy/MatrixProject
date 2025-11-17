@@ -12,12 +12,14 @@ namespace MatrixProject
         {
             if (!ValidateInputs(model, space, translationTolerance))
                 return new List<Matrix4x4>();
-
+                
+            //if someone would write a low number for unknown reason
             translationTolerance = Mathf.Max(translationTolerance, EPSILON);
 
             var spaceHash = BuildSpatialHash(space, translationTolerance);
             var result = new List<Matrix4x4>();
 
+            //looking for offset with each space matrix
             for (int si = 0; si < space.Count; si++)
             {
                 if (!IsValidMatrix(space[si])) continue;
@@ -37,6 +39,7 @@ namespace MatrixProject
             return result;
         }
 
+        //pre calculating matrices list check
         private static bool ValidateInputs(List<Matrix4x4> model, List<Matrix4x4> space, float tolerance)
         {
             if (model == null || space == null)
@@ -56,16 +59,18 @@ namespace MatrixProject
 
             return true;
         }
-
+        
         private static bool IsValidMatrix(Matrix4x4 matrix)
         {
+            //check for invalid value
             for (int i = 0; i < 16; i++)
             {
                 float value = matrix[i];
                 if (float.IsNaN(value) || float.IsInfinity(value))
                     return false;
             }
-
+            
+            //to check if it isn't zero matrix
             float sum = 0f;
             sum += Mathf.Abs(matrix.m00) + Mathf.Abs(matrix.m01) + Mathf.Abs(matrix.m02) + Mathf.Abs(matrix.m03);
             sum += Mathf.Abs(matrix.m10) + Mathf.Abs(matrix.m11) + Mathf.Abs(matrix.m12) + Mathf.Abs(matrix.m13);
@@ -77,6 +82,7 @@ namespace MatrixProject
 
         private static bool IsInvertible(Matrix4x4 matrix)
         {
+            //to check if determinant isn't 0 or {det: 1^-n, epsilon: 1^-m where n <= m}
             float det = matrix.determinant;
             return Mathf.Abs(det) > EPSILON;
         }
@@ -86,6 +92,7 @@ namespace MatrixProject
             if (!IsInvertible(modelMatrix))
                 return null;
 
+            //inverse model matrix and then multiply it with space matrix
             Matrix4x4 modelBaseInv = modelMatrix.inverse;
             Matrix4x4 candidate = spaceMatrix * modelBaseInv;
 
@@ -103,10 +110,12 @@ namespace MatrixProject
                     continue;
 
                 Matrix4x4 transformed = offsetMatrix * modelMatrix[i];
-
+                
+                //first we checked the original model matrix and then we checked the transformed matrix
                 if (!IsValidMatrix(transformed))
                     return false;
-
+                
+                //and then it for being included in the list of space matrices
                 if (!IsMatrixInSpace(transformed, spaceHash, tolerance))
                     return false;
             }
@@ -114,6 +123,7 @@ namespace MatrixProject
             return true;
         }
 
+        //spatial hash for optimal lookup of required matrices
         private static Dictionary<string, List<Matrix4x4>> BuildSpatialHash(List<Matrix4x4> matrices, float tolerance)
         {
             var dict = new Dictionary<string, List<Matrix4x4>>(matrices.Count);
@@ -136,6 +146,7 @@ namespace MatrixProject
             return dict;
         }
 
+        //checking if matrix is in space
         private static bool IsMatrixInSpace(Matrix4x4 matrix, Dictionary<string, List<Matrix4x4>> hash, float tolerance)
         {
             var p = GetPosition(matrix);
@@ -146,34 +157,26 @@ namespace MatrixProject
 
             for (int i = 0; i < bucket.Count; i++)
             {
-                var bp = GetPosition(bucket[i]);
-                var dx = bp.x - p.x;
-                var dy = bp.y - p.y;
-                var dz = bp.z - p.z;
-
-                float distSq = dx * dx + dy * dy + dz * dz;
-                if (distSq > tolerance*tolerance)
-                    continue;
-
-                if (AreMatricesEqual(matrix, bucket[i], tolerance))
-                    return true;
+                if(AreMatricesClose(bucket[i], matrix, tolerance)) return true;
             }
 
             return false;
         }
 
+        //search of duplicated matrices in the list
         private static bool IsMatrixDuplicate(Matrix4x4 matrix, List<Matrix4x4> matrices, float tolerance)
         {
             for (int i = 0; i < matrices.Count; i++)
             {
-                if (IsClose(matrix, matrices[i], tolerance))
+                if (AreMatricesClose(matrix, matrices[i], tolerance))
                     return true;
             }
 
             return false;
         }
-
-        private static bool IsClose(Matrix4x4 a, Matrix4x4 b, float tolerance)
+        
+        //comparing matrices to equality
+        private static bool AreMatricesClose(Matrix4x4 a, Matrix4x4 b, float tolerance)
         {
             var ap = GetPosition(a);
             var bp = GetPosition(b);
@@ -190,6 +193,7 @@ namespace MatrixProject
 
         private static Vector3 GetPosition(Matrix4x4 matrix) => new(matrix.m03, matrix.m13, matrix.m23);
 
+        //key for spatial hash, simply the vector (underspace are optional)
         private static string ConvertToKey(Vector3 vector, float tolerance)
         {
             float safeTolerance = Mathf.Max(tolerance, EPSILON);
@@ -199,7 +203,8 @@ namespace MatrixProject
             int rz = Mathf.RoundToInt(vector.z / safeTolerance);
             return $"{rx}_{ry}_{rz}";
         }
-
+        
+        //checking how close the substraction of matrix elements to zero (due to float usage)
         private static bool AreMatricesEqual(Matrix4x4 a, Matrix4x4 b, float tolerance)
         {
             return Mathf.Abs(a.m00 - b.m00) < tolerance &&
