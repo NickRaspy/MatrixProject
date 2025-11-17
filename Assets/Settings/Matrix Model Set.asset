@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 66d5adbcb5b5f114cbf96f0db68dfeb2, type: 3}
+  m_Name: Matrix Model Set
+  m_EditorClassIdentifier: Assembly-CSharp::MatrixModelSet
+  modelJSON: {fileID: 4900000, guid: 37ca4ad76f1bc4a479693f1104f6085a, type: 3}
+  spaceJSON: {fileID: 4900000, guid: 43bd3efa96613764f99eea783d817c8e, type: 3}
