@@ -1,20 +1,39 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Zenject;
 
 namespace MatrixProject
 {
     public class VisualizerManager : MonoBehaviour
     {
-        [SerializeField] private Color allMatricesColor = Color.white;
-        [SerializeField] private Color modelMatricesColor = Color.blue;
+        [Inject]
+        private MatrixContainer matrixContainer;
+
+        [SerializeField] private MatrixVisualiseColors matrixVisualiseColors;
         
         //for control
         private List<GameObject> allMatricesCubes = new();
         private List<GameObject> modelMatricesCubes = new();
 
-        public void VisualiseAllMatrices(List<Matrix4x4> matrices) => MatricesToCubes(matrices, allMatricesColor, allMatricesCubes);
+        private Dictionary<string, List<GameObject>> cubesCollections = new();
 
-        public void VisualiseModelMatrices(List<Matrix4x4> matrices) => MatricesToCubes(matrices, modelMatricesColor, modelMatricesCubes);
+        public void VisualizeAllMatrices()
+        {
+            foreach(var key in matrixContainer.MatrixLists.Keys)
+            {
+                List<GameObject> cubes = new();
+                cubesCollections.Add(key, cubes);
+
+                Color color;
+
+                if(matrixVisualiseColors.MatrixColors.TryGetValue(key, out Color acquiredColor)) 
+                    color = acquiredColor;
+                else 
+                    color = new(Random.Range(0,1), Random.Range(0,1), Random.Range(0,1));
+
+                MatricesToCubes(matrixContainer.MatrixLists[key], color, cubes);
+            }
+        }
 
         public void MatricesToCubes(List<Matrix4x4> matrices, Color color, List<GameObject> cubes)
         {

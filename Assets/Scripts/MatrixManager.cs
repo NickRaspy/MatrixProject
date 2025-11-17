@@ -1,15 +1,17 @@
 using UnityEngine;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine.Events;
-using Newtonsoft.Json;
+using Zenject;
 
 namespace MatrixProject
 {
     public class MatrixManager : MonoBehaviour
     {
         const string DEFAULT_OFFSET_JSON_FILENAME = "offset";
+
+        [Inject]
+        private MatrixContainer matrixContainer;
 
         [SerializeField] private MatrixModelSet matrixModelSet;
         [SerializeField] private float translationTolerance = 1e-3f;
@@ -19,8 +21,7 @@ namespace MatrixProject
         private List<Matrix4x4> foundOffsets = new();
 
         //can be used for visualize
-        [SerializeField] private UnityEvent<List<Matrix4x4>> onAllMatricesLoad;
-        [SerializeField] private UnityEvent<List<Matrix4x4>> onModelMatricesLoad;
+        [SerializeField] private UnityEvent onMatricesLoad;
 
         void Awake()
         {
@@ -31,6 +32,8 @@ namespace MatrixProject
             {
                 SearchOffsets();
             }
+
+            onMatricesLoad?.Invoke();
         }
 
         //check for assigned objects on inspector
@@ -56,14 +59,12 @@ namespace MatrixProject
         {
             try
             {
+                
                 modelList.LoadFromJSON(matrixModelSet.modelJSON.text);
+                matrixContainer.Load("model", modelList.matrices);
+
                 spaceList.LoadFromJSON(matrixModelSet.spaceJSON.text);
-
-                if (spaceList.matrices != null)
-                    onAllMatricesLoad?.Invoke(spaceList.matrices);
-
-                if (modelList.matrices != null)
-                    onModelMatricesLoad?.Invoke(modelList.matrices);
+                matrixContainer.Load("space", spaceList.matrices);
 
                 return true;
             }
